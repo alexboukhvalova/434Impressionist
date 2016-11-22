@@ -6,33 +6,25 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Paint;
-import android.graphics.Path;
 import android.graphics.Point;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
-import android.media.MediaScannerConnection;
-import android.net.Uri;
 import android.os.Environment;
-import android.provider.MediaStore;
-import android.support.v4.content.ContextCompat;
-import android.support.v4.view.VelocityTrackerCompat;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.VelocityTracker;
 import android.view.View;
 import android.widget.ImageView;
-import android.widget.Toast;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.OutputStream;
 import java.text.MessageFormat;
-import java.util.Random;
 
 /**
  * Created by jon on 3/20/2016.
+ * Edited by Alex Boukhvalova on 11/20/2016 for 434Impressionist project.
  */
 public class ImpressionistView extends View {
 
@@ -44,13 +36,8 @@ public class ImpressionistView extends View {
     private VelocityTracker _vTracker = null;
 
     private int _alpha = 150;
-    private int _defaultRadius = 25;
-    private Point _lastPoint = null;
-    private long _lastPointTime = -1;
-    private boolean _useMotionSpeedForBrushStrokeSize = true;
     private Paint _paintBorder = new Paint();
     private BrushType _brushType = BrushType.SimpleSquare;
-    private float _minBrushRadius = 5;
 
     private int _savedPicNumber = 1;
 
@@ -129,24 +116,27 @@ public class ImpressionistView extends View {
      */
     public void clearPainting(){
         //adapted from draw test code given from 434 class
-        if(_offScreenCanvas != null) {
+        if(_offScreenCanvas != null) { //make sure canvas object was created
             Paint paint = new Paint();
             paint.setColor(Color.WHITE);
             paint.setStyle(Paint.Style.FILL);
+            //"clear" the canvas by filling the whole area with a white rectangle
             _offScreenCanvas.drawRect(0, 0, this.getWidth(), this.getHeight(), paint);
         }
 
-        invalidate();
+        invalidate(); //calling onDraw
     }
 
     /**
-     * Saves the painting
+     * Saves the painting using the same style of saving image to gallery as used in MainActivity
+     * for downloading the imaged
      */
     public void savePainting(Context context){
         String fileName = "Impressionist" + _savedPicNumber;
         try {
             File file = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), fileName);
 
+            //turn bitmap into an image before it can be saved
             _offScreenBitmap.compress(Bitmap.CompressFormat.JPEG, 100, new FileOutputStream(file));
 
             FileUtils.addImageToGallery(file.getAbsolutePath(), context);
@@ -156,22 +146,36 @@ public class ImpressionistView extends View {
     }
 
     /**
-     *Fills in the background with an opaque square pattern that matches the color pallete
+     *Fills in the background with an opaque pixelated version of the image that the user can trace
+     * over
      */
     public void setTraceBackground(){
-        int width = _offScreenBitmap.getWidth();
-        int height = _offScreenBitmap.getHeight();
+        //int width = _imageView.getWidth();
+        //int height = _imageView.getHeight();
+
+        //Get the rectangle border dimensions for the offScreenBitmap
+        Rect bitRectangle = getBitmapPositionInsideImageView(_imageView);
+        int width = bitRectangle.width();
+        int height = bitRectangle.height();
+
         int colorAtPixelInImage;
         Bitmap imageViewBitmap = _imageView.getDrawingCache();
 
-        for (int w = 0; w < (width - 50); w += 50) {
-            for (int h = 0; h < (height - 50); h += 50) {
+        //use these dimension for the loop in order to fill the border drawn for the painting
+        int finalWidth = width + bitRectangle.left;
+        int finalHeight = height + bitRectangle.top;
+
+        //loop through rows and columns of the offScreenCanvas in order to fill it with the opaque
+        //pixelated background
+        for (int w = bitRectangle.left; w < (finalWidth - 50); w += 50) {
+            for (int h = bitRectangle.top; h < (finalHeight - 50); h += 50) {
+                //grab original pixel colors from painting
                 colorAtPixelInImage = imageViewBitmap.getPixel(w, h);
                 _paint.setColor(colorAtPixelInImage);
-                _paint.setAlpha(60);
-                _offScreenCanvas.drawRect(w + 50,h + 50,w,h,_paint);
+                _paint.setAlpha(100); //making the background more opque than the original image
+                _offScreenCanvas.drawRect(w,h,w+50,h+50,_paint); //draw the 50x50 quares
 
-                invalidate();
+                invalidate(); //call onDraw
             }
         }
     }
@@ -191,24 +195,25 @@ public class ImpressionistView extends View {
     @Override
     public boolean onTouchEvent(MotionEvent motionEvent){
 
+        //grab where the user is touching the offScreenCanvas
         int x = (int)motionEvent.getX();
         int y = (int)motionEvent.getY();
 
-        Bitmap imageViewBitmap = _imageView.getDrawingCache();
+        Bitmap imageViewBitmap = _imageView.getDrawingCache(); //original painting view
         int colorAtTouchPixelInImage = imageViewBitmap.getPixel(x, y);
 
         switch (motionEvent.getAction()) {
 
             case MotionEvent.ACTION_DOWN:
                 if(_vTracker == null) {
-                    // Retrieve a new VelocityTracker object to watch the velocity of a motion.
+                    // Get VelocityTracker object to track the users velocity of touch motion.
                     _vTracker = VelocityTracker.obtain();
                 }
                 else {
-                    // Reset the velocity tracker back to its initial state.
+                    // Reset the velocity tracker.
                     _vTracker.clear();
                 }
-                // Add a user's movement to the tracker.
+                // Take into account user's movement.
                 _vTracker.addMovement(motionEvent);
 
                 _paint.setColor(colorAtTouchPixelInImage);
@@ -224,10 +229,9 @@ public class ImpressionistView extends View {
                 break;
             case MotionEvent.ACTION_MOVE:
                 _vTracker.addMovement(motionEvent);
-                // When you want to determine the velocity, call
-                // computeCurrentVelocity(). Then call getXVelocity()
-                // and getYVelocity() to retrieve the velocity for each pointer ID.
                 _vTracker.computeCurrentVelocity(1000);
+                //scale down the veolocity by dividing by 100. Otherwise the values would be too
+                //large for the given offscreenbitmap
                 float xVel = _vTracker.getXVelocity()/100;
                 float yVel = _vTracker.getYVelocity()/100;
 

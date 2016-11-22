@@ -10,12 +10,9 @@ import android.provider.MediaStore;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.Menu;
-import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.webkit.URLUtil;
-import android.widget.ActionMenuView;
 import android.widget.ImageView;
 import android.widget.PopupMenu;
 import android.widget.PopupMenu.OnMenuItemClickListener;
@@ -65,6 +62,8 @@ public class MainActivity extends AppCompatActivity implements OnMenuItemClickLi
 
     }
 
+    //onClick method for clear button that calls the clear function in ImpressionistView to erase
+    //everything from the bitmap
     public void onButtonClickClear(View v) {
         new AlertDialog.Builder(this)
                 .setTitle("Clear Painting?")
@@ -78,6 +77,7 @@ public class MainActivity extends AppCompatActivity implements OnMenuItemClickLi
                 .setNegativeButton(android.R.string.no, null).show();
     }
 
+    //onClick method when the save button is selected and it calls the save method in the ImprresionistView
     public void onButtonClickSave(View v) {
         new AlertDialog.Builder(this)
                 .setTitle("Save Painting?")
@@ -91,7 +91,9 @@ public class MainActivity extends AppCompatActivity implements OnMenuItemClickLi
                 .setNegativeButton(android.R.string.no, null).show();
     }
 
-    public void onButtonClickFunkyBackground(View v) {
+    //onClick method when the trace background button is selected
+    //calls the setTraceBackground in Impressionist view
+    public void onButtonClickTraceBackground(View v) {
         new AlertDialog.Builder(this)
                 .setTitle("Show image to trace?")
                 .setMessage("Do you really want to trace image?")
@@ -124,10 +126,6 @@ public class MainActivity extends AppCompatActivity implements OnMenuItemClickLi
             case R.id.menuLine:
                 Toast.makeText(this, "Line Brush", Toast.LENGTH_SHORT).show();
                 _impressionistView.setBrushType(BrushType.Line);
-                return true;
-            case R.id.menuCircleSplatter:
-                Toast.makeText(this, "Circle Splatter Brush", Toast.LENGTH_SHORT).show();
-                _impressionistView.setBrushType(BrushType.CircleSplatter);
                 return true;
             case R.id.menuVelocitySquare:
                 Toast.makeText(this, "Velocity Square Brush", Toast.LENGTH_SHORT).show();
